@@ -11,14 +11,14 @@ const PORT = 3001;
 const secretKey = process.env.SECRET_KEY;
 
 // Simulate a database with user credentials (email and hashed password):
-const users = [{ id: 1, email: "testuser@gmail.com", password: "" }];
+const users = [{ id: 1, email: "testuser@gmail.com", hashedPassword: "" }];
 const plaintextPassword = "password123";
 
 bcrypt.hash(plaintextPassword, 10, (err, hash) => {
   if (err) {
     console.log(err);
   } else {
-    users[0].password = hash;
+    users[0].hashedPassword = hash;
   }
 });
 
@@ -27,35 +27,52 @@ bcrypt.hash(plaintextPassword, 10, (err, hash) => {
 app.use((req, res, next) => {
   res.append("Access-Control-Allow-Origin", ["*"]);
   res.append("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
-  res.append("Access-Control-Allow-Headers", "Content-Type");
+  res.append("Access-Control-Allow-Headers", "Content-Type, Authorization");
   next();
 });
+
+// Middleware to verify JWT token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json("Status 401: Unauthorized" );
+  }
+
+  jwt.verify(token, secretKey, (err, user) => {
+    if (err) {
+      return res.status(403).json("Status 403: Forbidden" );
+    }
+    req.user = user;
+    next();
+  });
+};
 
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
   const user = users.find((user) => user.email === email);
 
   if (!user) {
-    res.status(401).json({ error: "Invalid email" });
+    res.status(401).json({ error: "Invalid email or password" });
     return;
   }
 
-  bcrypt.compare(password, user.password, (err, result) => {
+  bcrypt.compare(password, user.hashedPassword, (err, result) => {
     if (err) {
       console.log(err);
     } else if (result) {
-      const expiresIn = 7200;
+      const expiresIn = "1h";
       const token = jwt.sign({ userId: user.email }, secretKey, { expiresIn }); // Use shorter expiration and refresh token
       res.json({ token, expiresIn });
     } else {
-      res.status(401).json({ error: "Invalid password" });
+      res.status(401).json({ error: "Invalid email or password" });
     }
   });
 });
 
-app.get("/my", (req, res) => {
-  // receive token as cookie
-  // validate token
+app.get("/my", authenticateToken, (req, res) => {
+  res.json("This is a successful server response");
   // if success, send some data to client
 });
 

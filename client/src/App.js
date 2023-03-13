@@ -15,29 +15,51 @@ const App = () => {
     })
       .then((response) => response.json())
       .then((data) => {
-        // Save token in a cookie. Set expiration time of that cookie to expiration time of token.
-        const expires = new Date(Date.now() + data.expiresIn * 1000);
-        document.cookie = `jwt=${data.token}; expires=${expires.toUTCString()}; path=/; secure; SameSite=Strict`;
+        if (data.token) {
+          // Save token in a local storage
+          localStorage.setItem("token", data.token);
+          console.log(
+            "Success! You are now authenticated. A JWT (expires in 1h) has been saved in your browsers local storage. Try to fetch confidential data from the server by clicking on 'My Profile'."
+          );
+        } else {
+          console.log(data.error);
+        }
       })
       .catch((error) => {
         console.error(error);
       });
   };
 
+  const requestConfidentialData = () => {
+    const token = localStorage.getItem("token") ? `Bearer ${localStorage.getItem("token")}` : "";
+
+    fetch("http://localhost:3001/my", {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => console.log(data));
+  };
+
   return (
-    <form onSubmit={handleSubmit}>
-      <label htmlFor="email">Email:</label>
-      <input type="email" id="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-      <label htmlFor="password">Password:</label>
-      <input
-        type="password"
-        id="password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        required
-      />
-      <button type="submit">Sign In</button>
-    </form>
+    <>
+      <form onSubmit={handleSubmit}>
+        <label htmlFor="email">Email:</label>
+        <input type="email" id="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+        <label htmlFor="password">Password:</label>
+        <input
+          type="password"
+          id="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
+        <button type="submit">Sign In</button>
+      </form>
+      <button onClick={requestConfidentialData}>My Profile</button>
+    </>
   );
 };
 
